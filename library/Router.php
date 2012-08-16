@@ -90,6 +90,12 @@ class Router
     {
         foreach ($params as $param => $value) {
             $request->setParam($param, $value);
+            if ($param === 'version'){
+                $request->setVersion($value);
+            }
+            if ($param === 'platform'){
+                $request->setPlatform($value);
+            }
             if ($param === 'controller') {
                 $request->setController($value);
             }

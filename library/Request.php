@@ -64,6 +64,12 @@ class Request
      * @var null|int
      */
     protected $urlSegment;
+
+    /**
+     * Slice url path before Router parse
+     * @var boolean
+     */
+    protected $isUrlSegmentForcedOnRouter = false;
     
     /**
      * @var null|string
@@ -79,16 +85,26 @@ class Request
      * @var string
      */
     protected $contentType = 'html';
+
+    /**
+     * @var string
+     */
+    protected $version = null;
+
+    /**
+     * @var string
+     */
+    protected $platform = null;
+
+    /**
+     * @var string
+     */
+    protected $controller = null;
     
     /**
      * @var string
      */
-    protected $controller = self::CONTROLLER_INDEX;
-    
-    /**
-     * @var string
-     */
-    protected $action = self::ACTION_INDEX;
+    protected $action = null;
     
     /**
      * @var array
@@ -122,10 +138,11 @@ class Request
      * @params int $segment
      * @return Request
      */
-    public function setUrlSegment($segment)
+    public function setUrlSegment($segment, $force = false)
     {
         if (is_numeric($segment)) {
             $this->urlSegment = $segment;
+            $this->isUrlSegmentForcedOnRouter = $force;
         }
         return $this;
     }
@@ -183,9 +200,16 @@ class Request
     /**
      * @return string
      */
-    public function getController()
+    public function getController($useComponents = false)
     {
-        return $this->controller;   
+        if(!$useComponents)
+            return $this->controller;
+        $controllerComponents = array(
+            $this->version,
+            $this->platform,
+            $this->controller
+        );
+        return ltrim(join('_',$controllerComponents),'_');
     }
     
     /**
@@ -211,11 +235,13 @@ class Request
     
     /**
      * @param null|string $controllerName
-     * @param null|string $actionName 
+     * @param null|string $actionName
+     * @param null|string $apiVersion
+     * @param null|string $platform
      * @return void
      * @throws RuntimeException
      */
-    public function dispatch($controllerName = null, $actionName = null)
+    public function dispatch($controllerName = null, $actionName = null, $apiVersion = null, $platformName = null)
     {
         if ($this->isUrlRewritingEnabled && $this->router instanceof Router) {
             $this->getRouter()->route($this);
@@ -224,15 +250,33 @@ class Request
         } else {
             $this->parseQueryString(); 
         }
-        
-        $controllerName = isset($controllerName) ? $controllerName : $this->getController(); 
+
+        // Check for manual override
+        if(isset($controllerName) && isset($actionName))
+        {
+            $version = null;
+            $platformName = null;
+        }
+        else
+        {
+            $apiVersion = $this->getVersion();
+            $platformName = $this->getPlatform();
+        }
+
+
+        $controllerName = isset($controllerName) ? $controllerName : $this->getController();
         $actionName = isset($actionName) ? $actionName : $this->getAction();
+
+        try{
+            $response = $this->handleRequest($controllerName, $actionName, $apiVersion, $platformName);
+             $this->setResponse($response);
         
-        $response = $this->handleRequest($controllerName, $actionName);
-        $this->setResponse($response);
-        
-        $renderer = new Renderer();
-        $renderer->render($this);
+            $renderer = new Renderer();
+             $renderer->render($this);
+        }
+        catch(RequestException $e){
+            throw new RequestException($e->getMessage(), Response::NOT_ACCEPTABLE, $this->getPlatform(), $this->getVersion());
+        }
     }
     
     
@@ -243,17 +287,24 @@ class Request
      * dispatch loop which delegates requests to controllers. 
      * 
      * @param string $controllerName
-     * @param string $actionName 
+     * @param string $actionName
      * @return mixed
      * @throws RequestException
      * @throws RuntimeException
      */
-    public function handleRequest($controllerName, $actionName)
-    {    
-        try {
-            $controller = Loader::getInstance()->getController($controllerName);
-        } catch (LoaderException $e) {
-            throw new RequestException($e->getMessage(), Response::NOT_FOUND);
+    public function handleRequest($controllerName, $actionName, $apiVersion = null, $platformName =null)
+    {
+        // Resolve controller name
+        $controllerClassName = $controllerName;
+        if(null !== $apiVersion || null !== $platformName)
+            $controllerClassName = $this->getController(true);
+        if(null !== $controllerClassName)
+        {
+            try {
+                $controller = Loader::getInstance()->getController($controllerClassName);
+            } catch (LoaderException $e) {
+                throw new RequestException($e->getMessage(), Response::NOT_FOUND, $this->getPlatform(), $this->getVersion());
+            }
         }
         
         if (method_exists($controller, 'setRequest')) {
@@ -302,7 +353,12 @@ class Request
         }
         
         $response = new Response();
+
         $response->setException($e);
+        if ($e instanceof RequestException) {
+            $response->setException(new RequestException($e->getMessage(),$e->getCode(),$this->getPlatform(), $this->getVersion()));
+        }
+
         $this->setResponse($response);
         
         try {
@@ -528,11 +584,18 @@ class Request
                 $this->setContentType($contentType);
             }
         }
-        
+
+        if(false !== $this->isUrlSegmentForcedOnRouter) {
+            $urlPathArray = explode('/', ltrim($urlPath, '\/'));
+            $urlPath = '/';
+            $urlPath .= join('/',array_slice($urlPathArray,$this->urlSegment));
+        }
+
         $urlPath = preg_replace('/\/+/', '\1/', rtrim($urlPath, '\/'));
         if (empty($urlPath)) {
             $urlPath = '/';
         }
+
         $this->setUrlPath(urldecode($urlPath));
         
         return $this->urlPath;
@@ -730,5 +793,41 @@ class Request
         $response->addHeader('Location: ' . $uri);
         $response->sendHeaders();
         exit;
+    }
+
+    /**
+     * @param string $version
+     */
+    public function setVersion($version)
+    {
+        if (null !== $version && '' !== $version) {
+            $this->version = strtolower($version);
+        }
+    }
+
+    /**
+     * @return string
+     */
+    public function getVersion()
+    {
+        return $this->version;
+    }
+
+    /**
+     * @param string $platform
+     */
+    public function setPlatform($platform)
+    {
+        if (null !== $platform && '' !== $platform) {
+            $this->platform = strtolower($platform);
+        }
+    }
+
+    /**
+     * @return string
+     */
+    public function getPlatform()
+    {
+        return $this->platform;
     }
 }

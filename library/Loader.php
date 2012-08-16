@@ -89,7 +89,7 @@ class Loader
     {
         $className = $name . 'Controller';
         if (! $this->isRegistered($className)) {
-            if (! $this->includeFile($className, 'controllers')) {
+            if (! $this->includeAppFile($className, 'controllers')) {
                 $m = sprintf('Controller "%s" not found', $name);
                 throw new LoaderException($m, Response::NOT_FOUND);
             }
@@ -106,13 +106,13 @@ class Loader
     {
         $modelName = $entityName . 'Model';
         if (! $this->isRegistered($modelName)) {
-            if ($this->includeFile($modelName, 'models')) {
+            if ($this->includeAppFile($modelName, 'models')) {
                 $model = new $modelName($this->getDatabase());
             } else {
                 $model = new Model($this->getDatabase());
             }
             
-            $this->includeFile($entityName, 'models');
+            $this->includeAppFile($entityName, 'models');
             $model->setEntity($entityName);
             
             if (null === $model->getTable()) {
@@ -134,7 +134,7 @@ class Loader
     {
         $className = $name . 'Service';
         if (! $this->isRegistered($className)) {
-            if (! $this->includeFile($className, 'services')) {
+            if (! $this->includeAppFile($className, 'services')) {
                 $m = sprintf('Service "%s" not found', $name);
                 throw new LoaderException($m, Response::NOT_FOUND);
             } else {
@@ -168,12 +168,14 @@ class Loader
      * @return boolean
      * @throws RuntimeException
      */
-    public function includeFile($filename, $dir)
+    public function includeAppFile($filename, $dir)
     {
         if (preg_match('/[^a-z0-9\-_.]/i', $filename)) {
             throw new RuntimeException('Security check: Illegal character in filename.');
         }
-        
+        if (false !== strstr($filename, '_')) {
+            $filename = str_replace('_',DIRECTORY_SEPARATOR,$filename);
+        }
         $file = str_replace('/', DIRECTORY_SEPARATOR, sprintf('%s/%s/%s.php', APP_DIR, $dir, $filename));
         if (file_exists($file)) {
             require_once $file;
@@ -181,6 +183,27 @@ class Loader
         }
         return false;
     }
+
+    /**
+     * @param string $className
+     * @return boolean
+     * @throws RuntimeException
+     */
+    public function includeFile($className)
+    {
+        if (preg_match('/[^a-z0-9\-_.]/i', $className)) {
+            throw new RuntimeException('Security check: Illegal character in filename.');
+        }
+        if (false !== strstr($className, '_')) {
+            $className = str_replace('_',DIRECTORY_SEPARATOR,$className);
+        }
+
+        include_once $className.'.php';
+
+        return class_exists($className,false) || interface_exists($className,false);;
+    }
+
+
     
     /**
      * Attempts to load the classes automatically.
@@ -194,10 +217,18 @@ class Loader
         if (preg_match('/[^a-z0-9\-_.]/i', $className)) {
             throw new RuntimeException('Security check: Illegal character in filename.');
         }
-        if (false !== strstr($className, '_')) {
-            $className = str_replace('_', DIRECTORY_SEPARATOR, $className);
-        }
-        
-        require_once $className . '.php';
+
+        $loader = Loader::getInstance();
+
+        // Trivial case
+        if($loader->includeFile($className)) return;
+
+        // Zend-Style class name
+        if($loader->includeAppFile($className, 'controllers')) return;
+        if($loader->includeAppFile($className, 'models')) return;
+        if($loader->includeAppFile($className, 'views')) return;
+
+        $m = sprintf('Class "%s" not found', $className);
+        throw new LoaderException($m, Response::NOT_FOUND);
     }
 }

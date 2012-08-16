@@ -3,4 +3,8 @@
 
 <hr>
 
-<p><em><?php echo $response->getException()->getMessage() ?><em></p>
+<p>
+    <em>API version : <?php echo $response->getException()->apiVersion ?><em><br/>
+    <em>Platform : <?php echo $response->getException()->platform ?><em><br/>
+    <em>Reason : <?php echo $response->getException()->getMessage() ?><em>
+</p>

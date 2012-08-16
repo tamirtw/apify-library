@@ -20,11 +20,23 @@
  * @copyright   Copyright (c) 2011 Kewnode Ltd.
  * @version     $Id: $
  */
-class LoaderException extends Exception {}
-class RequestException extends Exception {}
-class ResponseException extends Exception {}
-class RendererException extends Exception {}
-class ControllerException extends Exception {}
-class ModelException extends Exception {}
-class EntityException extends Exception {}
-class ValidationException extends Exception {}
+class ExtendedException extends Exception {
+    public $apiVersion = null;
+    public $platform = null;
+    public function __construct($message, $code, $platform = null, $version = null) {
+        if(null !== $version)
+            $this->apiVersion = $version;
+        if(null !== $platform)
+            $this->platform = $platform;
+        parent::__construct($message, $code);
+    }
+}
+
+class LoaderException extends ExtendedException {}
+class RequestException extends ExtendedException {}
+class ResponseException extends ExtendedException {}
+class RendererException extends ExtendedException {}
+class ControllerException extends ExtendedException {}
+class ModelException extends ExtendedException {}
+class EntityException extends ExtendedException {}
+class ValidationException extends ExtendedException {}

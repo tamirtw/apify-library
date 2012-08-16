@@ -1,45 +1,39 @@
 <?php
-$routes[] = new Route('/', 
-    array(
-        'controller' => 'index', 
-        'action'     => 'index'
-    )
-);
 
-$routes[] = new Route('/example/:action', 
+// Basic routing
+$routes[] = new Route('/:controller/:action',
+    // params defaults
     array(
         'controller' => 'index'
-    )
-);
-
-$routes[] = new Route('/users/:id', 
-    array(
-        'controller' => 'users',
-        'action'     => 'show'
-    )
-);
-
-$routes[] = new Route('/users/:id/:action', 
-    array(
-        'controller' => 'users'
     ),
+    // params validation pattern (regex)
     array(
-        'action'     => '(show|update|destroy)',
-        'page'       => '\d+'
+        ':version' => API_VERSION_SCHEME
     )
 );
 
-$routes[] = new Route('/users/create', 
+// Basic routing + api version support
+$routes[] = new Route('/:version/:controller/:action',
+    // params defaults
     array(
-        'controller' => 'users',
-        'action'     => 'create'
+        'controller' => 'index'
+    ),
+    // params validation pattern (regex)
+    array(
+        'version' => API_VERSION_SCHEME
     )
 );
 
-$routes[] = new Route('/users', 
+// Basic routing + api version support + platform support
+$routes[] = new Route('/:version/:platform/:controller/:action',
+    // params defaults
     array(
-        'controller' => 'users',
-        'action'     => 'index'
+        'controller' => 'error'
+    ),
+    // params validation pattern (regex)
+    array(
+        'version' => API_VERSION_SCHEME,
+        'platform' => SUPPORTED_PLATFORMS
     )
 );
 

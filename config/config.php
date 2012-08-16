@@ -1,6 +1,6 @@
 <?php
 // Error reporting level
-define('DEBUG', true);
+define('DEBUG', false);
 if (DEBUG) {
     error_reporting(E_ALL | E_STRICT);
     ini_set('display_errors', 1);
@@ -39,5 +39,9 @@ require_once APP_DIR . '/controllers/Controller.php';
 set_include_path(ROOT_DIR . '/library' . PATH_SEPARATOR . APP_DIR . '/models');
 spl_autoload_register(array('Loader', 'autoload'));
 
+// InManage extra features
+define('URL_SEGMENT', 2); // Set as NULL to disable
+define('SUPPORTED_PLATFORMS','(ios|android)', true);
+define('API_VERSION_SCHEME','v?\d+');
 
 

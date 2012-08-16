@@ -131,13 +131,20 @@ class Response
     /**
      * @param string $message
      * @param string $type
+     * @param string $platform
+     * @param string $version
      * @return Response
      */
-    public function setError($message, $type)
+    public function setError($message, $type, $platform = null, $version = null)
     {
         $error = new stdClass();
+        if(null !== $version)
+            $error->apiVersion = $version;
+        if(null !== $platform)
+            $error->platform = $platform;
         $error->message = $message;
-        $error->type = $type;      
+        $error->type = $type;
+
           
         $this->error = $error;
         return $this;
@@ -168,7 +175,7 @@ class Response
         }
         
         $this->setCode($code);
-        $this->setError($e->getMessage(), get_class($e));
+        $this->setError($e->getMessage(), get_class($e), $e->platform, $e->apiVersion);
         
         $this->exception = $e;
         return $this;
