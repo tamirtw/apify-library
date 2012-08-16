@@ -2,5 +2,13 @@
 <p>There was an error processing your request:</p>
 
 <div class="error">
-	<p><strong><?php echo $response->getError()->type ?>:</strong> <?php echo $response->getError()->message ?></p>
+<?php
+    if (null !== $response->getError()->apiVersion)
+        echo "<p><strong>API Version:</strong> {$response->getError()->apiVersion}</p>";
+    ?>
+    <?php
+    if (null !== $response->getError()->platform)
+        echo "<p><strong>Platform:</strong> {$response->getError()->platform}</p>";
+?>
+    <p><strong><?php echo $response->getError()->type ?>:</strong> <?php echo $response->getError()->message ?></p>
 </div>
